@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--Custom BLE GATT-->
+<gatt gatt_caching="true" generic_attribute_service="true" header="gatt_db.h" name="Custom BLE GATT" out="gatt_db.c" prefix="gattdb_">
+
+  <!--Generic Access-->
+  <service advertise="false" name="Generic Access" requirement="mandatory" sourceId="org.bluetooth.service.generic_access" type="primary" uuid="1800">
+    <informativeText>Abstract: The generic_access service contains generic information about the device. All available Characteristics are readonly. </informativeText>
+
+    <!--Device Name-->
+    <characteristic const="false" id="device_name" name="Device Name" sourceId="org.bluetooth.characteristic.gap.device_name" uuid="2A00">
+      <value length="21" type="utf-8" variable_length="false">Tyrone's InflammaScan</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Appearance-->
+    <characteristic const="true" name="Appearance" sourceId="org.bluetooth.characteristic.gap.appearance" uuid="2A01">
+      <informativeText>Abstract: The external appearance of this device. The values are composed of a category (10-bits) and sub-categories (6-bits). </informativeText>
+      <value length="2" type="hex" variable_length="false">0000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+  </service>
+
+  <!--Device Information-->
+  <service advertise="false" id="device_information" name="Device Information" requirement="mandatory" sourceId="org.bluetooth.service.device_information" type="primary" uuid="180A">
+    <informativeText>Abstract: The Device Information Service exposes manufacturer and/or vendor information about a device. Summary: This service exposes manufacturer information about a device. The Device Information Service is instantiated as a Primary Service. Only one instance of the Device Information Service is exposed on a device.</informativeText>
+
+    <!--Manufacturer Name String-->
+    <characteristic const="true" id="manufacturer_name_string" name="Manufacturer Name String" sourceId="org.bluetooth.characteristic.manufacturer_name_string" uuid="2A29">
+      <informativeText>Abstract: The value of this characteristic is a UTF-8 string representing the name of the manufacturer of the device.</informativeText>
+      <value length="11" type="utf-8" variable_length="false">TrevorMeyer</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Model Number String-->
+    <characteristic const="false" id="model_number_string" name="Model Number String" sourceId="org.bluetooth.characteristic.model_number_string" uuid="2A24">
+      <informativeText>Abstract: The value of this characteristic is a UTF-8 string representing the model number assigned by the device vendor.</informativeText>
+      <value length="10" type="utf-8" variable_length="true">00000001</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Hardware Revision String-->
+    <characteristic const="false" id="hardware_revision_string" name="Hardware Revision String" sourceId="org.bluetooth.characteristic.hardware_revision_string" uuid="2A27">
+      <informativeText>Summary: The value of this characteristic is a UTF-8 string representing the hardware revision for the hardware within the device.</informativeText>
+      <value length="5" type="utf-8" variable_length="true">001</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Firmware Revision String-->
+    <characteristic const="false" id="firmware_revision_string" name="Firmware Revision String" sourceId="org.bluetooth.characteristic.firmware_revision_string" uuid="2A26">
+      <informativeText>Summary: The value of this characteristic is a UTF-8 string representing the firmware revision for the firmware within the device.</informativeText>
+      <value length="8" type="utf-8" variable_length="true">0.0.1</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--System ID-->
+    <characteristic const="false" id="system_id" name="System ID" sourceId="org.bluetooth.characteristic.system_id" uuid="2A23">
+      <informativeText>Abstract: The SYSTEM ID characteristic consists of a structure with two fields. The first field are the LSOs and the second field contains the MSOs. This is a 64-bit structure which consists of a 40-bit manufacturer-defined identifier concatenated with a 24 bit unique Organizationally Unique Identifier (OUI). The OUI is issued by the IEEE Registration Authority (http://standards.ieee.org/regauth/index.html) and is required to be used in accordance with IEEE Standard 802-2001.6 while the least significant 40 bits are manufacturer defined. If System ID generated based on a Bluetooth Device Address, it is required to be done as follows. System ID and the Bluetooth Device Address have a very similar structure: a Bluetooth Device Address is 48 bits in length and consists of a 24 bit Company Assigned Identifier (manufacturer defined identifier) concatenated with a 24 bit Company Identifier (OUI). In order to encapsulate a Bluetooth Device Address as System ID, the Company Identifier is concatenated with 0xFFFE followed by the Company Assigned Identifier of the Bluetooth Address. For more guidelines related to EUI-64, refer to http://standards.ieee.org/develop/regauth/tut/eui64.pdf. Examples: If the system ID is based of a Bluetooth Device Address with a Company Identifier (OUI) is 0x123456 and the Company Assigned Identifier is 0x9ABCDE, then the System Identifier is required to be 0x123456FFFE9ABCDE.</informativeText>
+      <value length="8" type="hex" variable_length="false"/>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+  </service>
+
+  <!--SWV Experiment-->
+  <service advertise="true" name="SWV Experiment" requirement="mandatory" sourceId="" type="primary" uuid="2e270432-ac30-46a2-bf47-7a04f19410f9">
+
+    <!--VDAC Reference-->
+    <characteristic const="false" id="VDAC_REF_GATT" name="VDAC Reference" sourceId="" uuid="8e869a17-4308-453d-8a10-8772c84a0fbd">
+      <value length="2" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--IADC Reference-->
+    <characteristic const="false" id="IADC_REF_GATT" name="IADC Reference" sourceId="" uuid="115adccf-3f83-41bb-8405-435ac648889c">
+      <value length="2" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Voltage Start-->
+    <characteristic const="false" id="VOLTAGE_START" name="Voltage Start" sourceId="" uuid="ebb798ec-7b52-4dd1-9f66-db0b15b2b72f">
+      <value length="2" type="hex" variable_length="false">0000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Voltage Stop-->
+    <characteristic const="false" id="VOLTAGE_STOP" name="Voltage Stop" sourceId="" uuid="36455afa-00a6-4b1c-8346-267fbb6f070a">
+      <value length="2" type="hex" variable_length="false">0000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Voltage Step-->
+    <characteristic const="false" id="VOLTAGE_STEP" name="Voltage Step" sourceId="" uuid="9f6c7b50-71f4-4c4d-89bc-59ccfa937fba">
+      <value length="2" type="hex" variable_length="false">0000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Pulse Height-->
+    <characteristic const="false" id="PULSE_HEIGHT" name="Pulse Height" sourceId="" uuid="9e3bd3c8-124b-413c-b964-18bf1124be17">
+      <value length="2" type="hex" variable_length="false">0000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Pulse Width-->
+    <characteristic const="false" id="PULSE_WIDTH" name="Pulse Width" sourceId="" uuid="7d9a7e78-07d0-47fc-a559-6745f3c784cc">
+      <value length="2" type="hex" variable_length="false">0000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Number Of Trials-->
+    <characteristic const="false" name="Number Of Trials" sourceId="" uuid="1aadf2ee-735c-42de-b51b-cdf98d5c0bf6">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Time Between Trials-->
+    <characteristic const="false" name="Time Between Trials" sourceId="" uuid="de2fef71-802a-45ef-834f-96d55a552d88">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Time Before Trials-->
+    <characteristic const="false" id="TIME_BEFORE_TRIAL" name="Time Before Trials" sourceId="" uuid="ab679ffd-5673-46a1-8fac-56375527b759">
+      <value length="2" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Time After Trials-->
+    <characteristic const="false" id="TIME_AFTER_TRIAL" name="Time After Trials" sourceId="" uuid="ed7545dd-6f43-4603-8146-5ec05f46d238">
+      <value length="2" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Samples Per Pulse-->
+    <characteristic const="false" id="SAMPLES_PER_PULSE" name="Samples Per Pulse" sourceId="" uuid="bfb3bb14-1a45-496d-8ad8-daff3d9ee079">
+      <value length="2" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Run Experiment-->
+    <characteristic const="false" id="RUN_EXPERIMENT" name="Run Experiment" sourceId="" uuid="b2c09f58-cba0-4ee7-9afb-80b675ad8b73">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+        <notify authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Result-->
+    <characteristic const="false" id="ADC_RESULT" name="Result" sourceId="" uuid="e92f5858-7b54-404d-b95e-ad3f824ba275">
+      <value length="8" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <notify authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Gain Channel-->
+    <characteristic const="false" id="GAIN_CHANNEL" name="Gain Channel" sourceId="" uuid="d378ee63-7431-4136-bb51-4793d0f636fb">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Electrode_Channel-->
+    <characteristic const="false" id="ELECTRODE_CHANNEL" name="Electrode_Channel" sourceId="" uuid="6f0b4e95-0a05-4706-ab31-1343cde24e02">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Operating Mode-->
+    <characteristic const="false" id="OPERATING_MODE" name="Operating Mode" sourceId="" uuid="45d73e42-8e5e-4ba4-9c6f-61b24ab64f0d">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Linear Sweep Rate-->
+    <characteristic const="false" id="LINEAR_SWEEP_RATE" name="Linear Sweep Rate" sourceId="" uuid="16f5bdd2-96d5-4de8-84a4-86767d1dc2c1">
+      <value length="2" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--LINEAR SWEEP SAMPLE RATE-->
+    <characteristic const="false" id="LINEAR_SWEEP_SAMPLE_RATE" name="LINEAR SWEEP SAMPLE RATE" sourceId="" uuid="f93d97e1-1d21-442f-91ab-e4da77dd33fb">
+      <value length="2" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Time Before Pulse-->
+    <characteristic const="false" id="TIME_BEFORE_PULSE" name="Time Before Pulse" sourceId="" uuid="0a999ead-890b-4e9f-8793-5d44db038b2f">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+
+    <!--Time After Pulse-->
+    <characteristic const="false" id="TIME_AFTER_PULSE" name="Time After Pulse" sourceId="" uuid="843a05fa-704d-44e1-b422-99cc1ce401ff">
+      <value length="1" type="hex" variable_length="false">00</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
+  </service>
+</gatt>
