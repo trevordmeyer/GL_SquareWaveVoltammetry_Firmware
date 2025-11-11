@@ -52,11 +52,12 @@
 #include "em_iadc.h"
 #include "em_letimer.h"
 #include "sl_sleeptimer.h"
+#include "em_core.h"
 
 
 
 //#define RUN_MODE 0 // TREVOR
-//#define RUN_MODE 1 // GEORGIA V1
+// #define RUN_MODE 1 // GEORGIA V1
 #define RUN_MODE 2 // GEORGIA V2
 
 // IADC Configuration
@@ -121,7 +122,7 @@ uint32_t pulse_before_ticks = 0;    // Pre-calculated ticks for before pulse pha
 uint32_t pulse_width_ticks = 0;     // Pre-calculated ticks for pulse width
 uint32_t pulse_after_ticks = 0;     // Pre-calculated ticks for after pulse phase
 
-int16_t vdacOUT_offset_volts    = -11; // in mV ##V1 device is -11, -18 for oscope, -13 for app display
+int16_t vdacOUT_offset_volts    =  -11; // in mV ##V1 device is -11, -18 for oscope, -13 for app display
 
 // VDAC Configuration
 #if RUN_MODE == 0
@@ -137,7 +138,7 @@ int16_t vdacOUT_offset_volts    = -11; // in mV ##V1 device is -11, -18 for osco
 // VDAC Calibration - Global constant for adjusting VDAC output
 // This can be used to compensate for device-specific variations
 // Units: VDAC counts, positive values increase output voltage
-const int16_t vdac_calibration_offset = 0;
+// const int16_t vdac_calibration_offset = 0;
 
 
 // Application Specific Configuration
@@ -155,6 +156,7 @@ uint32_t samples_in_current_pulse = 0;
 // Linear sweep mode variables
 uint32_t linear_sweep_timer_count = 0;
 uint16_t linear_sweep_current_voltage = 0;
+uint8_t  linear_sweep_phase = 0; // 0=start->stop, 1=stop->low, 2=low->start
 bool linear_sweep_direction_forward = true; // true = start->stop, false = stop->start
 
 /*
@@ -265,11 +267,13 @@ bool linear_sweep_direction_forward = true; // true = start->stop, false = stop-
 // Initialization Values Only
 #define INITIAL_VOLTAGE_START   900  // mV
 #define INITIAL_VOLTAGE_STOP   1500  // mV
+#define INITIAL_VOLTAGE_LOW     700  // mV
 #define INITIAL_VOLTAGE_STEP      4  // mV
 #define INITIAL_VOLTAGE_PULSE    40  // mV
 #define INITIAL_PULSE_WIDTH      16  // ms
 uint16_t vdacOUT_start  = ((int) ((double) INITIAL_VOLTAGE_START   * 4.096 / (double) VDAC_REF_VOLTAGE)) & 0xFFFF; // 4.096 to divide by 1000 for mv -> V
 uint16_t vdacOUT_stop   = ((int) ((double) INITIAL_VOLTAGE_STOP    * 4.096 / (double) VDAC_REF_VOLTAGE)) & 0xFFFF; // 4.096 to divide by 1000 for mv -> V
+uint16_t vdacOUT_low    = ((int) ((double) INITIAL_VOLTAGE_LOW     * 4.096 / (double) VDAC_REF_VOLTAGE)) & 0xFFFF; // 4.096 to divide by 1000 for mv -> V
  int16_t vdacOUT_step   = ((int) ((double) INITIAL_VOLTAGE_STEP    * 4.096 / (double) VDAC_REF_VOLTAGE)) & 0xFFFF; // 4.096 to divide by 1000 for mv -> V
  int16_t vdacOUT_pulse  = ((int) ((double) INITIAL_VOLTAGE_PULSE   * 4.096 / (double) VDAC_REF_VOLTAGE)) & 0xFFFF; // 4.096 to divide by 1000 for mv -> V
 
@@ -343,9 +347,11 @@ void startNewMeasurement(void)
   while (IADC_getScanFifoCnt(IADC0) > 0) {
     (void) IADC_pullScanFifoResult(IADC0);
   }
-  #if RUN_MODE == 1
+  #if RUN_MODE == 1  
   GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 1);
   GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 1);
+
+  sl_sleeptimer_delay_millisecond(1 * 1000); // Configurable delay before trial starts
 
   // Set electrode channel GPIO pins based on electrode_channel value (0-7)
   // Uses 3-bit binary: C_A2 (bit 2), C_A1 (bit 1), C_A0 (bit 0)
@@ -363,6 +369,8 @@ void startNewMeasurement(void)
 
 #elif RUN_MODE == 2
   GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 1);
+
+  sl_sleeptimer_delay_millisecond(1 * 1000); // Configurable delay before trial starts
 
   // Set electrode channel GPIO pins based on electrode_channel value (0-7)
   // Uses 3-bit binary: C_A2 (bit 2), C_A1 (bit 1), C_A0 (bit 0)
@@ -410,6 +418,7 @@ void startNewMeasurement(void)
       // Initialize linear sweep variables
       linear_sweep_timer_count = 0;
       linear_sweep_current_voltage = vdacOUT_start;
+      linear_sweep_phase = 0; // Start with phase 0 (start->stop)
       linear_sweep_direction_forward = true; // Always start going forward
       
       // Calculate linear sweep step and pulse timing
@@ -481,11 +490,11 @@ void stopThisMeasurement() {
     GPIO_PinOutSet(LED_OUT_PORT, LED_OUT_PIN);
 
   #elif RUN_MODE == 1
-    GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 1);
-    GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 0);
 
   #elif RUN_MODE == 2
-    GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 0);
   #endif
 }
 
@@ -761,35 +770,68 @@ void LETIMER0_IRQHandler(void)
           // samples_in_current_pulse = 0;
         }
       } else if (operating_mode == 1) {
-        // Linear Sweep Mode - bidirectional sweep (start->stop->start)
+        // Linear Sweep Mode - continuous sweep (start->stop->low->start)
         int16_t current_step = linear_sweep_step;
+        uint16_t target_voltage;
         
-        // Reverse step direction if going backwards
-        if (!linear_sweep_direction_forward) {
-          current_step = -current_step;
+        // Determine target and step direction based on current phase
+        switch (linear_sweep_phase) {
+          case 0: // Phase 0: start -> stop
+            target_voltage = vdacOUT_stop;
+            // Ensure step direction matches voltage direction
+            if (vdacOUT_stop < vdacOUT_start && current_step > 0) {
+              current_step = -current_step;
+            } else if (vdacOUT_stop > vdacOUT_start && current_step < 0) {
+              current_step = -current_step;
+            }
+            break;
+            
+          case 1: // Phase 1: stop -> low
+            target_voltage = vdacOUT_low;
+            // Ensure step direction matches voltage direction
+            if (vdacOUT_low < vdacOUT_stop && current_step > 0) {
+              current_step = -current_step;
+            } else if (vdacOUT_low > vdacOUT_stop && current_step < 0) {
+              current_step = -current_step;
+            }
+            break;
+            
+          case 2: // Phase 2: low -> start
+          default:
+            target_voltage = vdacOUT_start;
+            // Ensure step direction matches voltage direction
+            if (vdacOUT_start < vdacOUT_low && current_step > 0) {
+              current_step = -current_step;
+            } else if (vdacOUT_start > vdacOUT_low && current_step < 0) {
+              current_step = -current_step;
+            }
+            break;
         }
         
         // Update voltage by current step
         vdacOUT_value += current_step;
         
-        // Check if we've reached an endpoint and need to reverse direction
-        bool endpoint_reached = false;
-        if (linear_sweep_direction_forward) {
-          // Going forward (start -> stop)
-          if ((current_step > 0 && vdacOUT_value >= vdacOUT_stop) ||
-              (current_step < 0 && vdacOUT_value <= vdacOUT_stop)) {
-            vdacOUT_value = vdacOUT_stop;
-            linear_sweep_direction_forward = false; // Start going backwards
-            endpoint_reached = true;
+        // Check if we've reached the target voltage
+        bool target_reached = false;
+        if (current_step > 0) {
+          if (vdacOUT_value >= target_voltage) {
+            vdacOUT_value = target_voltage;
+            target_reached = true;
           }
-        } else {
-          // Going backward (stop -> start)
-          if ((current_step > 0 && vdacOUT_value >= vdacOUT_start) ||
-              (current_step < 0 && vdacOUT_value <= vdacOUT_start)) {
-            vdacOUT_value = vdacOUT_start;
-            // Complete cycle - stop measurement or start new cycle
+        } else if (current_step < 0) {
+          if (vdacOUT_value <= target_voltage) {
+            vdacOUT_value = target_voltage;
+            target_reached = true;
+          }
+        }
+        
+        // If target reached, move to next phase
+        if (target_reached) {
+          linear_sweep_phase++;
+          if (linear_sweep_phase > 2) {
+            // Completed full cycle (start->stop->low->start), request stop
             measurement_stop_requested = true;
-            endpoint_reached = true;
+            linear_sweep_phase = 0; // Reset for next potential cycle
           }
         }
         
@@ -1091,14 +1133,14 @@ void initTimer(void) {
 }
 
 
-//void initPRS(void) {
-//  // Use LETIMER0 as async PRS to trigger IADC in EM2
-//  CMU_ClockEnable(cmuClock_PRS, true);
-//
-//  /* Set up PRS LETIMER and IADC as producer and consumer respectively */
-//  PRS_SourceAsyncSignalSet(ADC_TRIG_PRS_CHANNEL, PRS_ASYNC_CH_CTRL_SOURCESEL_LETIMER0, PRS_LETIMER0_CH0);
-//  PRS_ConnectConsumer(     ADC_TRIG_PRS_CHANNEL, prsTypeAsync, prsConsumerIADC0_SCANTRIGGER);
-//}
+void initPRS(void) {
+ // Use LETIMER0 as async PRS to trigger IADC in EM2
+ CMU_ClockEnable(cmuClock_PRS, true);
+
+ /* Set up PRS LETIMER and IADC as producer and consumer respectively */
+ PRS_SourceAsyncSignalSet(ADC_TRIG_PRS_CHANNEL, PRS_ASYNC_CH_CTRL_SOURCESEL_LETIMER0, PRS_LETIMER0_CH0);
+ PRS_ConnectConsumer(     ADC_TRIG_PRS_CHANNEL, prsTypeAsync, prsConsumerIADC0_SCANTRIGGER);
+}
 
 
 
@@ -1120,15 +1162,15 @@ void initGPIO(void)
 #elif RUN_MODE == 1
   // C_A0, C_A1, C_A2 pins will be set dynamically in startNewMeasurement based on electrode_channel
 
-  GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 1);
-  GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 1);
+  GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 0);
+  GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 0);
 
   // F_A1 and F_A0 pins will be set dynamically in startNewMeasurement based on gain_channel
 
 #elif RUN_MODE == 2
   // C_A0, C_A1, C_A2 pins will be set dynamically in startNewMeasurement based on electrode_channel
 
-  GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 1);
+  GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 0);
 
   // F_A1 and F_A0 pins will be set dynamically in startNewMeasurement based on gain_channel
 #endif
@@ -1167,14 +1209,6 @@ void app_process_action(void)
     stopThisMeasurement();
   }
 
-  if (BLE_notify_runExperiment) {
-    sl_status_t sc = send_runExperiment_notification();
-    if (sc == SL_STATUS_OK) {
-        BLE_notify_runExperiment = false;
-    }
-    // If notification fails, keep the flag set to retry
-  }
-
   if (BLE_notify_result && !BLE_transmission_busy) {
       // Try to dequeue and send a packet
       uint8_t packet_data[BLE_MAX_PACKET_SIZE];
@@ -1205,6 +1239,24 @@ void app_process_action(void)
           BLE_notify_result = false;
       }
   }
+
+  if (BLE_notify_runExperiment) {
+    sl_status_t sc = send_runExperiment_notification();
+    if (sc == SL_STATUS_OK) {
+        BLE_notify_runExperiment = false;
+        if (BLE_value_runExperiment == 0) {
+            // If runExperiment was set to 0, perform a system reset to return to boot state
+            // Reset the device to return to boot state
+            // Allow a brief delay for any pending operations to complete
+            sl_sleeptimer_delay_millisecond(2000);
+            NVIC_SystemReset();
+        }
+        
+    }
+    // If notification fails, keep the flag set to retry
+  }
+
+  
 }
 
 /**************************************************************************//**
@@ -1262,6 +1314,11 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
                                                    0, sizeof(time_before_pulse), &time_before_pulse);
       sc = sl_bt_gatt_server_write_attribute_value(gattdb_TIME_AFTER_PULSE,
                                                    0, sizeof(time_after_pulse), &time_after_pulse);
+
+      // Initialize voltage low to default
+      uint16_t voltage_low_init = INITIAL_VOLTAGE_LOW;
+      sc = sl_bt_gatt_server_write_attribute_value(gattdb_VOLTAGE_LOW,
+                                                   0, sizeof(voltage_low_init), &voltage_low_init);
 
       // Create an advertising set.
       sc = sl_bt_advertiser_create_set(&advertising_set_handle);
@@ -1328,6 +1385,16 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
 
             vdacOUT_stop = (uint16_t)((int16_t)data_recv_voltageStop + vdacOUT_offset_volts);
             calculateLinearSweepStep(); // Recalculate step when voltage range changes
+        }
+
+        if ( gattdb_VOLTAGE_LOW == evt->data.evt_gatt_server_attribute_value.attribute) {
+            uint16_t data_recv_voltageLow;
+            sc = sl_bt_gatt_server_read_attribute_value(gattdb_VOLTAGE_LOW, 0, sizeof(data_recv_voltageLow), &data_recv_len, &data_recv_voltageLow);
+            (void)data_recv_len;
+            if (sc != SL_STATUS_OK) { break; }
+
+            vdacOUT_low = (uint16_t)((int16_t)data_recv_voltageLow + vdacOUT_offset_volts);
+            // the voltage sweep matches the slope from start to high.
         }
 
         if ( gattdb_VOLTAGE_STEP == evt->data.evt_gatt_server_attribute_value.attribute) {

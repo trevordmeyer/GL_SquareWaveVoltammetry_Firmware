@@ -48,6 +48,12 @@ GATT_DATA(const uint8_t gattdb_uuidtable_128_map[]) =
   0xfb, 0x33, 0xdd, 0x77, 0xda, 0xe4, 0xab, 0x91, 0x2f, 0x44, 0x21, 0x1d, 0xe1, 0x97, 0x3d, 0xf9, 
   0x2f, 0x8b, 0x03, 0xdb, 0x44, 0x5d, 0x93, 0x87, 0x9f, 0x4e, 0x0b, 0x89, 0xad, 0x9e, 0x99, 0x0a, 
   0xff, 0x01, 0xe4, 0x1c, 0xcc, 0x99, 0x22, 0xb4, 0xe1, 0x44, 0x4d, 0x70, 0xfa, 0x05, 0x3a, 0x84, 
+  0xca, 0x35, 0x0e, 0x6e, 0xf5, 0x20, 0x9c, 0xbd, 0xdc, 0x41, 0x8c, 0xc1, 0xe6, 0x0b, 0x1f, 0x79, 
+};
+GATT_DATA(sli_bt_gattdb_attribute_chrvalue_t gattdb_attribute_field_70) = {
+  .properties = 0x0a,
+  .max_len = 2,
+  .data = { 0x00, 0x00, },
 };
 GATT_DATA(sli_bt_gattdb_attribute_chrvalue_t gattdb_attribute_field_68) = {
   .properties = 0x0a,
@@ -292,18 +298,20 @@ GATT_DATA(const sli_bt_gattdb_attribute_t gattdb_attributes_map[]) = {
   { .handle = 0x43, .uuid = 0x8013, .permissions = 0x803, .caps = 0xffff, .state = 0x00, .datatype = 0x01, .dynamicdata = &gattdb_attribute_field_66 },
   { .handle = 0x44, .uuid = 0x0002, .permissions = 0x801, .caps = 0xffff, .state = 0x00, .datatype = 0x05, .characteristic = { .properties = 0x0a, .char_uuid = 0x8014 } },
   { .handle = 0x45, .uuid = 0x8014, .permissions = 0x803, .caps = 0xffff, .state = 0x00, .datatype = 0x01, .dynamicdata = &gattdb_attribute_field_68 },
+  { .handle = 0x46, .uuid = 0x0002, .permissions = 0x801, .caps = 0xffff, .state = 0x00, .datatype = 0x05, .characteristic = { .properties = 0x0a, .char_uuid = 0x8015 } },
+  { .handle = 0x47, .uuid = 0x8015, .permissions = 0x803, .caps = 0xffff, .state = 0x00, .datatype = 0x01, .dynamicdata = &gattdb_attribute_field_70 },
 };
 
 GATT_HEADER(const sli_bt_gattdb_t gattdb) = {
   .attributes = gattdb_attributes_map,
-  .attribute_table_size = 69,
-  .attribute_num = 69,
+  .attribute_table_size = 71,
+  .attribute_num = 71,
   .uuid16 = gattdb_uuidtable_16_map,
   .uuid16_table_size = 14,
   .uuid16_num = 14,
   .uuid128 = gattdb_uuidtable_128_map,
-  .uuid128_table_size = 21,
-  .uuid128_num = 21,
+  .uuid128_table_size = 22,
+  .uuid128_num = 22,
   .num_ccfg = 3,
   .caps_mask = 0xffff,
   .enabled_caps = 0xffff,

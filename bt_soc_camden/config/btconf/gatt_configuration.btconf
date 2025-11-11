@@ -265,5 +265,14 @@
         <write authenticated="false" bonded="false" encrypted="false"/>
       </properties>
     </characteristic>
+
+    <!--Voltage Low-->
+    <characteristic const="false" id="VOLTAGE_LOW" name="Voltage Low" sourceId="" uuid="791f0be6-c18c-41dc-bd9c-20f56e0e35ca">
+      <value length="2" type="hex" variable_length="false">0000</value>
+      <properties>
+        <read authenticated="false" bonded="false" encrypted="false"/>
+        <write authenticated="false" bonded="false" encrypted="false"/>
+      </properties>
+    </characteristic>
   </service>
 </gatt>

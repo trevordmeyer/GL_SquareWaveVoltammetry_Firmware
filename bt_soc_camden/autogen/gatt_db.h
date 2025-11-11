@@ -39,6 +39,7 @@ extern const sli_bt_gattdb_t gattdb;
 #define gattdb_LINEAR_SWEEP_SAMPLE_RATE       65
 #define gattdb_TIME_BEFORE_PULSE              67
 #define gattdb_TIME_AFTER_PULSE               69
+#define gattdb_VOLTAGE_LOW                    71
 
 #define gattdb_generic_attribute_len          2
 #define gattdb_service_changed_char_len       4
@@ -70,6 +71,7 @@ extern const sli_bt_gattdb_t gattdb;
 #define gattdb_LINEAR_SWEEP_SAMPLE_RATE_len   2
 #define gattdb_TIME_BEFORE_PULSE_len          1
 #define gattdb_TIME_AFTER_PULSE_len           1
+#define gattdb_VOLTAGE_LOW_len                2
 
 
 #endif // __GATT_DB_H

@@ -86,7 +86,9 @@ app.o: ../app.c \
  /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_system.h \
  /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_system_generic.h \
  /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_letimer.h \
- /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/service/sleeptimer/inc/sl_sleeptimer.h
+ /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/service/sleeptimer/inc/sl_sleeptimer.h \
+ /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_core.h \
+ /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_core_generic.h
 /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/protocol/bluetooth/inc/sl_bt_api.h:
 /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/common/inc/sl_status.h:
 /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/protocol/bluetooth/inc/sl_bgapi.h:
@@ -175,3 +177,5 @@ app.o: ../app.c \
 /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_system_generic.h:
 /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_letimer.h:
 /Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/service/sleeptimer/inc/sl_sleeptimer.h:
+/Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_core.h:
+/Users/camden/SimplicityStudio/v5_workspace/bt_soc_camden/simplicity_sdk_2025.6.0/platform/emlib/inc/em_core_generic.h:
