@@ -57,8 +57,8 @@
 
 
 //#define RUN_MODE 0 // TREVOR
-// #define RUN_MODE 1 // GEORGIA V1
-#define RUN_MODE 2 // GEORGIA V2
+ #define RUN_MODE 1 // GEORGIA V1
+//#define RUN_MODE 2 // GEORGIA V2
 
 // IADC Configuration
 uint16_t iadcSAMPLESperPULSE = 12; // samples
@@ -109,6 +109,8 @@ uint8_t  operating_mode = 0;    // Default to 0 (Square Wave Voltammetry), 1 = L
 uint16_t linear_sweep_rate = 100; // Default linear sweep rate in mV/s
 uint16_t linear_sweep_sample_rate = 25; // Default sampling rate for linear sweep in Hz
 int16_t  linear_sweep_step = 0;   // Pre-calculated linear sweep step (in VDAC units per sample)
+double   linear_sweep_step_fractional = 0.0; // Fractional step per sample for accurate sweep rate
+double   linear_sweep_accumulator = 0.0;     // Accumulator for fractional steps
 
 // Pulse mode variables
 uint8_t  time_before_pulse = 1; // Default 1 second before pulse (in s)
@@ -122,16 +124,21 @@ uint32_t pulse_before_ticks = 0;    // Pre-calculated ticks for before pulse pha
 uint32_t pulse_width_ticks = 0;     // Pre-calculated ticks for pulse width
 uint32_t pulse_after_ticks = 0;     // Pre-calculated ticks for after pulse phase
 
-int16_t vdacOUT_offset_volts    =  -11; // in mV ##V1 device is -11, -18 for oscope, -13 for app display
 
 // VDAC Configuration
 #if RUN_MODE == 0
   #define VDAC_REF_SELECT vdacRef2V5
   #define VDAC_REF_VOLTAGE 2.5
 
-#elif (RUN_MODE == 1) | (RUN_MODE == 2)
+#elif RUN_MODE == 1
   #define VDAC_REF_SELECT vdacRefAvdd
   #define VDAC_REF_VOLTAGE 1.8
+  #define VDAC_OFFSET_BITS -12
+
+#elif RUN_MODE == 2
+  #define VDAC_REF_SELECT vdacRefAvdd
+  #define VDAC_REF_VOLTAGE 1.8
+  #define VDAC_OFFSET_BITS -12 // bits that the dac should be offset by
 
 #endif
 
@@ -145,7 +152,7 @@ int16_t vdacOUT_offset_volts    =  -11; // in mV ##V1 device is -11, -18 for osc
 #define SWV_REF_VOLTAGE     900 // mV
 uint16_t vdacOUT_offset     = 0xFFFF; // VOLTAGE_START * 4096.0 / (double) VDAC_REF_VOLTAGE;
 uint16_t vdacOUT_value      = 0xFFFF; // VOLTAGE_START * 4096.0 / (double) VDAC_REF_VOLTAGE;
-uint16_t vdacOUT_ref        = ((int) ((double) SWV_REF_VOLTAGE * 4.096 / (double) VDAC_REF_VOLTAGE)) & 0xFFFF; // 4.096 to divide by 1000 for mv -> V
+uint16_t vdacOUT_ref        = (((int) ((double) SWV_REF_VOLTAGE * 4.096 / (double) VDAC_REF_VOLTAGE)) + VDAC_OFFSET_BITS) & 0xFFFF; // 4.096 to divide by 1000 for mv -> V
 uint32_t vdacOUT_count      = 0;
 uint32_t iadcSAMPLE_count   = 0;
 bool     iadc_isFirstSample = true;
@@ -265,7 +272,7 @@ bool linear_sweep_direction_forward = true; // true = start->stop, false = stop-
 
 
 // Initialization Values Only
-#define INITIAL_VOLTAGE_START   900  // mV
+#define INITIAL_VOLTAGE_START   888  // mV
 #define INITIAL_VOLTAGE_STOP   1500  // mV
 #define INITIAL_VOLTAGE_LOW     700  // mV
 #define INITIAL_VOLTAGE_STEP      4  // mV
@@ -295,32 +302,45 @@ uint16_t vdacOUT_low    = ((int) ((double) INITIAL_VOLTAGE_LOW     * 4.096 / (do
 // }
 
 // Function to calculate linear sweep step
+// 
+// FRACTIONAL ACCUMULATOR APPROACH:
+// This function calculates the exact fractional DAC step per sample to maintain
+// accurate sweep rates. For example, with a 50mV/s rate and 100Hz sample rate,
+// the step is 1.13 DAC units per sample. Instead of truncating to 1 (which would
+// give a slower sweep rate), we accumulate the fractional 0.13 each sample. When the accumulator
+// reaches 1.0, we apply an extra step, maintaining the correct average rate of 50mV/s.
+//
+// Benefits:
+// - Accurate sweep rates regardless of sample rate
+// - No cumulative timing error
+// - Works for any combination of sweep rate and sample rate
 void calculateLinearSweepStep(void) {
     if (operating_mode == 1 && linear_sweep_sample_rate > 0) {
         // Calculate step in VDAC units per sample
-        // linear_sweep_rate (mV/s) * (4.096 / VDAC_REF_VOLTAGE) / linear_sweep_sample_rate (Hz)
+        // linear_sweep_rate (mV/s) * (4.096 / VDAC_REF_VOLTAGE) / linear_sweep_sample_rate (1/s)
         double step_per_sample = (double)linear_sweep_rate * 4.096 / (double)VDAC_REF_VOLTAGE / linear_sweep_sample_rate;
         
-        // Ensure minimum step size to prevent zero steps when sample rate is high
-        if (step_per_sample > 0 && step_per_sample < 1.0) {
-            step_per_sample = 1.0;  // Minimum step of 1 VDAC unit
-        } else if (step_per_sample < 0 && step_per_sample > -1.0) {
-            step_per_sample = -1.0; // Minimum step of 1 VDAC unit (negative direction)
-        }
-        
+        // Store the exact fractional step for accumulator-based approach
         // Determine direction based on start and stop voltages
         if (vdacOUT_stop >= vdacOUT_start) {
-            linear_sweep_step = (int16_t)step_per_sample;
+            linear_sweep_step_fractional = step_per_sample;
         } else {
-            linear_sweep_step = -(int16_t)step_per_sample;
+            linear_sweep_step_fractional = -step_per_sample;
         }
+        
+        // Store integer step as well (for backward compatibility or fast checks)
+        // Round to nearest integer instead of truncating for better accuracy
+        linear_sweep_step = (int16_t)(linear_sweep_step_fractional + (linear_sweep_step_fractional >= 0 ? 0.5 : -0.5));
         
         // Final safety check - ensure step is never zero when there's a voltage range to sweep
         if (linear_sweep_step == 0 && vdacOUT_start != vdacOUT_stop) {
             linear_sweep_step = (vdacOUT_stop > vdacOUT_start) ? 1 : -1;
+            // Also update fractional step to match
+            linear_sweep_step_fractional = (double)linear_sweep_step;
         }
     } else {
         linear_sweep_step = 0;
+        linear_sweep_step_fractional = 0.0;
     }
 }
 
@@ -420,6 +440,7 @@ void startNewMeasurement(void)
       linear_sweep_current_voltage = vdacOUT_start;
       linear_sweep_phase = 0; // Start with phase 0 (start->stop)
       linear_sweep_direction_forward = true; // Always start going forward
+      linear_sweep_accumulator = 0.0; // Reset accumulator for fractional step tracking
       
       // Calculate linear sweep step and pulse timing
       calculateLinearSweepStep();
@@ -490,11 +511,11 @@ void stopThisMeasurement() {
     GPIO_PinOutSet(LED_OUT_PORT, LED_OUT_PIN);
 
   #elif RUN_MODE == 1
-    GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 0);
-    GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 1);
+    GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 1);
 
   #elif RUN_MODE == 2
-    GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 1);
   #endif
 }
 
@@ -771,7 +792,8 @@ void LETIMER0_IRQHandler(void)
         }
       } else if (operating_mode == 1) {
         // Linear Sweep Mode - continuous sweep (start->stop->low->start)
-        int16_t current_step = linear_sweep_step;
+        // Use fractional accumulator for accurate sweep rate
+        double current_step_fractional = linear_sweep_step_fractional;
         uint16_t target_voltage;
         
         // Determine target and step direction based on current phase
@@ -779,20 +801,20 @@ void LETIMER0_IRQHandler(void)
           case 0: // Phase 0: start -> stop
             target_voltage = vdacOUT_stop;
             // Ensure step direction matches voltage direction
-            if (vdacOUT_stop < vdacOUT_start && current_step > 0) {
-              current_step = -current_step;
-            } else if (vdacOUT_stop > vdacOUT_start && current_step < 0) {
-              current_step = -current_step;
+            if (vdacOUT_stop < vdacOUT_start && current_step_fractional > 0) {
+              current_step_fractional = -current_step_fractional;
+            } else if (vdacOUT_stop > vdacOUT_start && current_step_fractional < 0) {
+              current_step_fractional = -current_step_fractional;
             }
             break;
             
           case 1: // Phase 1: stop -> low
             target_voltage = vdacOUT_low;
             // Ensure step direction matches voltage direction
-            if (vdacOUT_low < vdacOUT_stop && current_step > 0) {
-              current_step = -current_step;
-            } else if (vdacOUT_low > vdacOUT_stop && current_step < 0) {
-              current_step = -current_step;
+            if (vdacOUT_low < vdacOUT_stop && current_step_fractional > 0) {
+              current_step_fractional = -current_step_fractional;
+            } else if (vdacOUT_low > vdacOUT_stop && current_step_fractional < 0) {
+              current_step_fractional = -current_step_fractional;
             }
             break;
             
@@ -800,25 +822,35 @@ void LETIMER0_IRQHandler(void)
           default:
             target_voltage = vdacOUT_start;
             // Ensure step direction matches voltage direction
-            if (vdacOUT_start < vdacOUT_low && current_step > 0) {
-              current_step = -current_step;
-            } else if (vdacOUT_start > vdacOUT_low && current_step < 0) {
-              current_step = -current_step;
+            if (vdacOUT_start < vdacOUT_low && current_step_fractional > 0) {
+              current_step_fractional = -current_step_fractional;
+            } else if (vdacOUT_start > vdacOUT_low && current_step_fractional < 0) {
+              current_step_fractional = -current_step_fractional;
             }
             break;
         }
         
-        // Update voltage by current step
-        vdacOUT_value += current_step;
+        // Accumulate the fractional step
+        linear_sweep_accumulator += current_step_fractional;
         
-        // Check if we've reached the target voltage
+        // Apply integer steps when accumulator exceeds threshold
+        int16_t steps_to_apply = (int16_t)linear_sweep_accumulator;
+        if (steps_to_apply != 0) {
+          // Update voltage by accumulated steps
+          vdacOUT_value += steps_to_apply;
+          
+          // Subtract the applied steps from accumulator, keeping the fractional part
+          linear_sweep_accumulator -= (double)steps_to_apply;
+        }
+        
+        // Check if we've reached or passed the target voltage
         bool target_reached = false;
-        if (current_step > 0) {
+        if (current_step_fractional > 0) {
           if (vdacOUT_value >= target_voltage) {
             vdacOUT_value = target_voltage;
             target_reached = true;
           }
-        } else if (current_step < 0) {
+        } else if (current_step_fractional < 0) {
           if (vdacOUT_value <= target_voltage) {
             vdacOUT_value = target_voltage;
             target_reached = true;
@@ -828,6 +860,7 @@ void LETIMER0_IRQHandler(void)
         // If target reached, move to next phase
         if (target_reached) {
           linear_sweep_phase++;
+          linear_sweep_accumulator = 0.0; // Reset accumulator for next phase
           if (linear_sweep_phase > 2) {
             // Completed full cycle (start->stop->low->start), request stop
             measurement_stop_requested = true;
@@ -1133,14 +1166,14 @@ void initTimer(void) {
 }
 
 
-void initPRS(void) {
- // Use LETIMER0 as async PRS to trigger IADC in EM2
- CMU_ClockEnable(cmuClock_PRS, true);
+// void initPRS(void) {
+//  // Use LETIMER0 as async PRS to trigger IADC in EM2
+//  CMU_ClockEnable(cmuClock_PRS, true);
 
- /* Set up PRS LETIMER and IADC as producer and consumer respectively */
- PRS_SourceAsyncSignalSet(ADC_TRIG_PRS_CHANNEL, PRS_ASYNC_CH_CTRL_SOURCESEL_LETIMER0, PRS_LETIMER0_CH0);
- PRS_ConnectConsumer(     ADC_TRIG_PRS_CHANNEL, prsTypeAsync, prsConsumerIADC0_SCANTRIGGER);
-}
+//  /* Set up PRS LETIMER and IADC as producer and consumer respectively */
+//  PRS_SourceAsyncSignalSet(ADC_TRIG_PRS_CHANNEL, PRS_ASYNC_CH_CTRL_SOURCESEL_LETIMER0, PRS_LETIMER0_CH0);
+//  PRS_ConnectConsumer(     ADC_TRIG_PRS_CHANNEL, prsTypeAsync, prsConsumerIADC0_SCANTRIGGER);
+// }
 
 
 
@@ -1162,15 +1195,15 @@ void initGPIO(void)
 #elif RUN_MODE == 1
   // C_A0, C_A1, C_A2 pins will be set dynamically in startNewMeasurement based on electrode_channel
 
-  GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 0);
-  GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 0);
+  GPIO_PinModeSet(EN_1_8_PORT, EN_1_8_PIN, gpioModePushPull, 1);
+  GPIO_PinModeSet(EN_Vplus_PORT, EN_Vplus_PIN, gpioModePushPull, 1);
 
   // F_A1 and F_A0 pins will be set dynamically in startNewMeasurement based on gain_channel
 
 #elif RUN_MODE == 2
   // C_A0, C_A1, C_A2 pins will be set dynamically in startNewMeasurement based on electrode_channel
 
-  GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 0);
+  GPIO_PinModeSet(EN_PORT, EN_PIN, gpioModePushPull, 1);
 
   // F_A1 and F_A0 pins will be set dynamically in startNewMeasurement based on gain_channel
 #endif
@@ -1373,8 +1406,8 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
             (void)data_recv_len;
             if (sc != SL_STATUS_OK) { break; }
 
-            vdacOUT_start = (uint16_t)((int16_t)data_recv_voltageStart + vdacOUT_offset_volts);
-            calculateLinearSweepStep(); // Recalculate step when voltage range changes
+            vdacOUT_start = (uint16_t)((int16_t)data_recv_voltageStart + (int16_t)VDAC_OFFSET_BITS);
+            // calculateLinearSweepStep(); // Recalculate step when voltage range changes
         }
 
         if ( gattdb_VOLTAGE_STOP == evt->data.evt_gatt_server_attribute_value.attribute) {
@@ -1383,8 +1416,8 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
             (void)data_recv_len;
             if (sc != SL_STATUS_OK) { break; }
 
-            vdacOUT_stop = (uint16_t)((int16_t)data_recv_voltageStop + vdacOUT_offset_volts);
-            calculateLinearSweepStep(); // Recalculate step when voltage range changes
+            vdacOUT_stop = (uint16_t)((int16_t)data_recv_voltageStop + (int16_t)VDAC_OFFSET_BITS);
+            // calculateLinearSweepStep(); // Recalculate step when voltage range changes
         }
 
         if ( gattdb_VOLTAGE_LOW == evt->data.evt_gatt_server_attribute_value.attribute) {
@@ -1393,7 +1426,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
             (void)data_recv_len;
             if (sc != SL_STATUS_OK) { break; }
 
-            vdacOUT_low = (uint16_t)((int16_t)data_recv_voltageLow + vdacOUT_offset_volts);
+            vdacOUT_low = (uint16_t)((int16_t)data_recv_voltageLow + (int16_t)VDAC_OFFSET_BITS);
             // the voltage sweep matches the slope from start to high.
         }
 
@@ -1505,7 +1538,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
             if (data_recv_operatingMode <= 2) {
                 operating_mode = data_recv_operatingMode;
                 // Recalculate timing when operating mode changes
-                calculateLinearSweepStep();
+                // calculateLinearSweepStep();
                 calculatePulseTiming();
             }
         }
@@ -1517,7 +1550,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
             if (sc != SL_STATUS_OK) { break; }
 
             linear_sweep_rate = data_recv_linearSweepRate;
-            calculateLinearSweepStep(); // Recalculate step when rate changes
+            // calculateLinearSweepStep(); // Recalculate step when rate changes
         }
 
         if ( gattdb_LINEAR_SWEEP_SAMPLE_RATE == evt->data.evt_gatt_server_attribute_value.attribute) {
@@ -1527,7 +1560,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
             if (sc != SL_STATUS_OK) { break; }
 
             linear_sweep_sample_rate = data_recv_linearSweepSampleRate;
-            calculateLinearSweepStep(); // Recalculate step when sample rate changes
+            // calculateLinearSweepStep(); // Recalculate step when sample rate changes
             calculatePulseTiming(); // Recalculate pulse timing when sample rate changes
         }
 
